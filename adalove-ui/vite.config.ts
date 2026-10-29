@@ -30,7 +30,9 @@ export default defineConfig({
     outDir: here("../extension/dist"),
     emptyOutDir: false,
     cssCodeSplit: false,
-    target: "chrome111", // adoptedStyleSheets + :host — Chrome 111+ cobre tudo que usamos
+    // adoptedStyleSheets + :host — Chrome 111+ cobre tudo que usamos. O Firefox
+    // 128 é o `strict_min_version` do manifest (e o piso do Tailwind 4).
+    target: ["chrome111", "firefox128"],
     rollupOptions: {
       input: here("./src/mount.tsx"),
       output: {

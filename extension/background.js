@@ -11,7 +11,10 @@
 const FICHA_URL =
   "https://script.google.com/a/macros/sou.inteli.edu.br/s/AKfycbzPPAq9NHqyqsl_MqaA1m1RkZ4H1uuFH58JsDLpoYqL6EGhHRPQFsqbT5fJhbM9pE1L/exec";
 
-const api = globalThis.browser ?? globalThis.chrome;
+// Ver adalove-inject.js: `browser` no Firefox, `chrome` no Chrome, ambos com
+// promessas. O `onMessage` abaixo fica no estilo `sendResponse` + `return true`,
+// o único que funciona igual em qualquer Chrome MV3 e no Firefox.
+const api = globalThis.browser?.runtime?.id ? globalThis.browser : globalThis.chrome;
 
 // Permissão OPCIONAL (optional_host_permissions): pedir no install desativaria
 // a extensão de quem já a tem até aceitar, e ninguém saberia por quê. Ela é

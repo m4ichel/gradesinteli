@@ -25,13 +25,27 @@ direto. A UI original nunca é destruída, só escondida por CSS.
   nada é guardado além da sessão que o próprio Adalove guardaria. Entrar com o
   Google aciona o botão original deles, sem intermediário.
 - Não envia nada para servidores de terceiros — os dados vão direto do seu
-  navegador (Adalove → GradesInteli) via `chrome.storage` local + `postMessage`.
+  navegador (Adalove → GradesInteli) via `storage.local` da extensão + `postMessage`.
 
 ## Instalar (modo desenvolvedor)
+
+**Chrome / Edge**
 
 1. Abra `chrome://extensions` (ou `edge://extensions`).
 2. Ative o **Modo do desenvolvedor**.
 3. **Carregar sem compactação** / **Load unpacked** → selecione esta pasta (`extension`).
+
+**Firefox** (128 ou mais novo)
+
+1. Abra `about:debugging#/runtime/this-firefox`.
+2. **Carregar extensão temporária…** → escolha o `manifest.json` desta pasta.
+3. Em `about:addons` → Adalove Modern UI → **Permissões**, confira que o acesso a
+   `adalove.inteli.edu.br` e `www.gradesinteli.com` está ligado. No MV3 do Firefox
+   o acesso a sites é permissão que a pessoa pode desligar; sem ele nenhum
+   content script roda.
+
+A extensão temporária some ao fechar o Firefox. A pasta é a mesma nos dois
+navegadores — ver [Chrome e Firefox](#chrome-e-firefox).
 
 O `dist/adalove-ui.js` é gerado por `npm run build` dentro de `../adalove-ui` — não
 é editado à mão.
@@ -40,8 +54,8 @@ O `dist/adalove-ui.js` é gerado por `npm run build` dentro de `../adalove-ui` �
 
 No Adalove logado aparecem dois botões nos cantos de baixo:
 
-- **"✦ UI nova"**, à esquerda → liga a interface nova. A preferência fica em
-  `chrome.storage.local` (`uiMode`), então nas próximas visitas ela já abre assim;
+- **"✦ UI nova"**, à esquerda → liga a interface nova. A preferência fica no
+  `storage.local` da extensão (`uiMode`), então nas próximas visitas ela já abre assim;
   dentro dela, **"UI original"** no pé do menu desliga.
 - **"✓ Abrir no GradesInteli"**, à direita → abre o dashboard numa nova aba já com
   suas notas e faltas. Antes das atividades carregarem ele diz "Aguardando notas…".
@@ -68,20 +82,55 @@ O `adalove-boot.js` carrega uma cópia da lista de rotas cobertas pela overlay
 qualquer bundler e precisa decidir na hora se esconde o `#root` — numa rota que
 não cobrimos, esconder daria tela branca.
 
-## Firefox
+## Chrome e Firefox
 
-O mesmo pacote roda nos dois: o manifest não tem nada específico de Chrome.
+Um código só, e esta pasta carrega sem compactação nos dois. Os pisos são
+**Chrome 121** e **Firefox 128** (`strict_min_version`).
 
-Duas coisas foram feitas para isso. O Firefox [não implementa](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts)
-`"world": "MAIN"`, então o interceptor deixou de ser declarado assim e passou a
-ser injetado como `<script src>` pelo `adalove-inject.js` — o que funciona nos
-dois navegadores, e por isso não existe um manifest por navegador. E o código TS
-usa `browser` quando ele existe (`src/lib/ext.ts`): no Firefox o `chrome` é um
-alias de CALLBACKS, então `await chrome.storage.local.get(k)` resolveria para
-`undefined` em silêncio.
+- **Namespace.** Todo acesso à API passa por `browser` quando ele existe (Firefox)
+  e por `chrome` senão — os dois devolvem promessas em MV3. Nos `.js` desta pasta
+  é uma linha no topo de cada arquivo; no TS é `adalove-ui/src/lib/ext.ts`. O teste
+  é `browser?.runtime?.id`, não só `browser`: no Firefox o `chrome` existe como
+  alias de CALLBACKS (`await chrome.storage.local.get(k)` resolveria para
+  `undefined` em silêncio), e uma página com um elemento `id="browser"` o expõe
+  como global. Não usamos o `webextension-polyfill`: ele não acrescentaria nada
+  no Chrome MV3, que já é baseado em promessas, e o único ponto em que os dois
+  diferem — devolver uma Promise de dentro do `onMessage` — fica de fora porque o
+  `background.js` usa `sendResponse` + `return true`, que funciona igual nos dois.
+- **Background.** O manifest declara `service_worker` (Chrome) e `scripts`
+  (Firefox, que roda o mesmo arquivo como event page). Cada navegador ignora a
+  chave do outro a partir do 121 — é o arranjo que a [MDN recomenda](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/background).
+- **Interceptor.** É injetado como `<script src>` pelo `adalove-inject.js`, não
+  declarado com `"world": "MAIN"` (que o Firefox só aceita desde o 128). Funciona
+  nos dois porque o Adalove não manda CSP.
+- **CSS da overlay.** Num content script do Firefox anterior ao 153 (ESR 128 e 140
+  inclusive), atribuir `shadowRoot.adoptedStyleSheets` lança erro
+  ([bug 1751346](https://bugzilla.mozilla.org/show_bug.cgi?id=1751346)); o
+  `mount.tsx` cai para um `<style>` dentro do shadow root.
+- **URLs internas.** Fontes e logos vêm de `runtime.getURL(...)` e estão em
+  `web_accessible_resources` — `chrome-extension://` num, `moz-extension://` no outro.
 
-Para testar: `about:debugging` → **Este Firefox** → **Carregar extensão
-temporária** → escolha o `manifest.json` desta pasta.
+### Pacotes para as lojas
+
+```bash
+npm run build --prefix adalove-ui   # só se a UI mudou
+npm run build:extension             # na raiz do repo
+```
+
+O `scripts/build-extension.mjs` gera `build/extension/chrome/` e
+`build/extension/firefox/` (pastas que também carregam sem compactação) e um
+`.zip` de cada, com o manifest enxuto para o navegador: o do Chrome perde
+`background.scripts` e `browser_specific_settings`; o do Firefox perde
+`background.service_worker`. Ele para se o manifest citar um arquivo que não existe.
+
+O AMO pede o código-fonte junto quando o pacote tem código compilado (o
+`dist/adalove-ui.js`): envie o repositório com estas instruções de build.
+
+Para validar o pacote do Firefox com o mesmo linter do AMO:
+
+```bash
+npx web-ext lint --source-dir build/extension/firefox
+```
 
 ## Desenvolvimento local
 

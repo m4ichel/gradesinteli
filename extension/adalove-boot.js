@@ -10,6 +10,9 @@
 
 (function () {
   const STYLE_ID = "gi-hide-root";
+  // Ver adalove-inject.js: `browser` no Firefox, `chrome` no Chrome, ambos com
+  // promessas.
+  const api = globalThis.browser?.runtime?.id ? globalThis.browser : globalThis.chrome;
 
   // Mesma porteira do mount.tsx (adalove-ui/src/shell/routes.ts, que é a fonte
   // da verdade): fora das telas que reconstruímos a UI deles tem que aparecer.
@@ -95,7 +98,7 @@
     /* storage bloqueado: segue o fluxo normal */
   }
 
-  chrome.storage.local.get("uiMode", (res) => {
+  api.storage.local.get("uiMode").then((res) => {
     if (!res || res.uiMode !== "new") return;
     if (document.getElementById(STYLE_ID)) return;
 

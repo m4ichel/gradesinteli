@@ -266,6 +266,25 @@ function renderShell(node: React.ReactNode) {
   root?.render(<StrictMode>{node}</StrictMode>);
 }
 
+/** Folha construída onde dá, `<style>` onde não dá. Num content script do
+ *  Firefox anterior ao 153 (ESR 128 e 140 inclusive), atribuir
+ *  `adoptedStyleSheets` lança "Accessing from Xray wrapper is not supported"
+ *  (bug 1751346) — sem o fallback a overlay montava sem CSS nenhum. A releitura
+ *  cobre o caso de a atribuição não lançar mas também não valer. */
+function adoptCss(shadow: ShadowRoot, css: string) {
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    shadow.adoptedStyleSheets = [sheet];
+    if (shadow.adoptedStyleSheets.length === 1) return;
+  } catch {
+    /* cai no <style> abaixo */
+  }
+  const style = document.createElement("style");
+  style.textContent = css;
+  shadow.appendChild(style);
+}
+
 /** Cria (uma vez) o host, o shadow root e a raiz do React. Duas telas moram
  *  aqui: o app e o login. */
 function createHost() {
@@ -283,9 +302,7 @@ function createHost() {
 
   const shadow = host.attachShadow({ mode: "open" });
   registerCustomProperties(cssText);
-  const sheet = new CSSStyleSheet();
-  sheet.replaceSync(shadowScopedCss(cssText));
-  shadow.adoptedStyleSheets = [sheet];
+  adoptCss(shadow, shadowScopedCss(cssText));
 
   const container = document.createElement("div");
   container.className = "adalove-ui-root";

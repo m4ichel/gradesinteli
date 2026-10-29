@@ -9,6 +9,9 @@
   // Usa o host canônico direto (o apex e o antigo *.vercel.app redirecionam
   // para cá) — abrir a URL de redirect faria o content script perder a página.
   const GRADES_URL = "https://www.gradesinteli.com";
+  // Ver adalove-inject.js: `browser` no Firefox, `chrome` no Chrome, ambos com
+  // promessas.
+  const api = globalThis.browser?.runtime?.id ? globalThis.browser : globalThis.chrome;
 
   let hasData = false;
 
@@ -19,17 +22,16 @@
     const data = e.data;
     if (!data || data.source !== TAG || typeof data.body !== "string") return;
 
-    chrome.storage.local.set(
-      { lastCapture: { json: data.body, capturedAt: Date.now(), url: data.url } },
-      () => {
+    api.storage.local
+      .set({ lastCapture: { json: data.body, capturedAt: Date.now(), url: data.url } })
+      .then(() => {
         hasData = true;
         updateButton();
-      }
-    );
+      });
   });
 
   function openGrades() {
-    chrome.storage.local.get("lastCapture", (res) => {
+    api.storage.local.get("lastCapture").then((res) => {
       const cap = res && res.lastCapture;
       if (!cap || typeof cap.json !== "string") {
         alert("Abra a aba Notas e aguarde as atividades carregarem antes de importar.");
@@ -37,14 +39,13 @@
       }
       // Re-arma o import com timestamp do clique. O GradesInteli só importa
       // capturas recentes, e cada clique gera uma nova. Se a aba já estiver
-      // aberta, o chrome.storage.onChanged lá atualiza o dashboard ao vivo;
-      // se não estiver, abrimos e o import pendente é lido no load.
-      chrome.storage.local.set(
-        { pendingImport: { json: cap.json, requestedAt: Date.now() } },
-        () => {
+      // aberta, o storage.onChanged lá atualiza o dashboard ao vivo; se não
+      // estiver, abrimos e o import pendente é lido no load.
+      return api.storage.local
+        .set({ pendingImport: { json: cap.json, requestedAt: Date.now() } })
+        .then(() => {
           window.open(GRADES_URL, "gradesinteli");
-        }
-      );
+        });
     });
   }
 
@@ -85,7 +86,7 @@
   }
 
   // Se a página recarregar/navegar, recupera o estado de "tem captura".
-  chrome.storage.local.get("lastCapture", (res) => {
+  api.storage.local.get("lastCapture").then((res) => {
     if (res && res.lastCapture && typeof res.lastCapture.json === "string") {
       hasData = true;
       updateButton();

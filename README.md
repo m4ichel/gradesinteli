@@ -76,6 +76,8 @@ A forma mais fácil é pela **extensão do navegador** — ela liga a interface 
 2. Ative o **Modo do desenvolvedor**
 3. **Carregar sem compactação** / **Load unpacked** → selecione a pasta `extension/`
 
+No Firefox (128+): `about:debugging#/runtime/this-firefox` → **Carregar extensão temporária…** → o `manifest.json` da pasta `extension/`. Detalhes e o build dos pacotes de cada loja em [`extension/README.md`](extension/README.md#chrome-e-firefox).
+
 </details>
 
 ## Star History

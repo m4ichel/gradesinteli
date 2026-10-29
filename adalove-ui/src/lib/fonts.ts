@@ -17,9 +17,12 @@ const FACES: { family: string; weight: number; file: string }[] = [
 
 export function ensureFonts() {
   if (document.getElementById(STYLE_ID)) return;
-  // Capturado numa const: dentro do template o TS não estreita `ext?.`.
-  const getURL = ext?.runtime?.getURL;
-  if (!getURL) return;
+  // Capturado numa const: dentro do template o TS não estreita `ext?.`. Com
+  // `bind`, porque método solto de API de extensão não tem garantia de
+  // funcionar sem o `this` em todo navegador.
+  const runtime = ext?.runtime;
+  if (!runtime?.getURL) return;
+  const getURL = runtime.getURL.bind(runtime);
 
   const css = FACES.map(
     ({ family, weight, file }) => `@font-face{

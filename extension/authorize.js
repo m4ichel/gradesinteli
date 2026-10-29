@@ -3,7 +3,9 @@
 // Ao conceder, grava `fichaAccessGrantedAt` no storage: a aba do Adalove escuta
 // essa chave e recarrega as métricas sozinha, sem o aluno precisar dar F5.
 
-const api = globalThis.browser ?? globalThis.chrome;
+// Ver adalove-inject.js: `browser` no Firefox, `chrome` no Chrome, ambos com
+// promessas.
+const api = globalThis.browser?.runtime?.id ? globalThis.browser : globalThis.chrome;
 const ORIGINS = ["https://script.google.com/*"];
 
 const button = document.getElementById("allow");
